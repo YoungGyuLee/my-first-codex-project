@@ -56,6 +56,16 @@
           <button class="filter-button" type="button" data-filter="high" aria-pressed="false">중요도 높음</button>
         </nav>
 
+        <label class="sr-only" for="search-input">할 일 검색</label>
+        <input
+          class="search-input"
+          id="search-input"
+          type="search"
+          placeholder="할 일 검색"
+          autocomplete="off"
+          aria-controls="todo-list"
+        />
+
         <ul class="todo-list" id="todo-list" aria-label="할 일 목록"></ul>
         <p class="empty-state" id="empty-state">아직 할 일이 없어요.<br />새로운 할 일을 추가해 보세요!</p>
         <p class="storage-note"><span aria-hidden="true">↻</span> 이 브라우저에 자동으로 저장돼요</p>

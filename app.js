@@ -8,6 +8,7 @@ const remainingCount = document.querySelector('#remaining-count');
 const priorityInput = document.querySelector('#priority-input');
 const todayInput = document.querySelector('#today-input');
 const filterBar = document.querySelector('#filter-bar');
+const searchInput = document.querySelector('#search-input');
 
 let todos = loadTodos();
 let activeFilter = 'all';
@@ -40,13 +41,16 @@ function saveTodos() {
 function renderTodos() {
   list.replaceChildren();
   const fragment = document.createDocumentFragment();
+  const searchTerm = searchInput.value.trim().toLowerCase();
 
   const visibleTodos = todos.filter((todo) => {
-    if (activeFilter === 'today') return todo.today;
-    if (activeFilter === 'incomplete') return !todo.completed;
-    if (activeFilter === 'completed') return todo.completed;
-    if (activeFilter === 'high') return todo.priority === 'high';
-    return true;
+    const matchesFilter = activeFilter === 'today' ? todo.today
+      : activeFilter === 'incomplete' ? !todo.completed
+        : activeFilter === 'completed' ? todo.completed
+          : activeFilter === 'high' ? todo.priority === 'high'
+            : true;
+    const matchesSearch = todo.text.toLowerCase().includes(searchTerm);
+    return matchesFilter && matchesSearch;
   });
 
   visibleTodos.forEach((todo) => {
@@ -95,7 +99,9 @@ function renderTodos() {
   emptyState.hidden = visibleTodos.length > 0;
   list.hidden = visibleTodos.length === 0;
   if (visibleTodos.length === 0 && todos.length > 0) {
-    emptyState.textContent = '이 필터에 해당하는 할 일이 없어요.';
+    emptyState.textContent = searchTerm
+      ? '검색어와 필터에 맞는 할 일이 없어요.'
+      : '이 필터에 해당하는 할 일이 없어요.';
   } else {
     emptyState.innerHTML = '아직 할 일이 없어요.<br />새로운 할 일을 추가해 보세요!';
   }
@@ -112,6 +118,8 @@ filterBar.addEventListener('click', (event) => {
   });
   renderTodos();
 });
+
+searchInput.addEventListener('input', renderTodos);
 
 form.addEventListener('submit', (event) => {
   event.preventDefault();
