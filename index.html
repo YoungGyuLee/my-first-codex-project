@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f5f7f4" />
+    <meta name="description" content="오늘 할 일을 간단하게 정리하고 관리해 보세요." />
+    <title>오늘의 할 일</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="page-header">
+        <p class="eyebrow">ONE STEP AT A TIME</p>
+        <h1>오늘의 할 일<span class="title-dot">.</span></h1>
+        <p class="subtitle">작은 한 걸음씩, 오늘을 채워 보세요.</p>
+      </header>
+
+      <section class="todo-card" aria-labelledby="list-title">
+        <form class="todo-form" id="todo-form">
+          <label class="sr-only" for="todo-input">새 할 일</label>
+          <input
+            id="todo-input"
+            name="todo"
+            type="text"
+            maxlength="160"
+            placeholder="새로운 할 일을 입력하세요"
+            autocomplete="off"
+            required
+          />
+          <label class="sr-only" for="priority-input">중요도</label>
+          <select id="priority-input" name="priority" aria-label="중요도">
+            <option value="low">낮음</option>
+            <option value="normal" selected>보통</option>
+            <option value="high">높음</option>
+          </select>
+          <button class="add-button" type="submit"><span aria-hidden="true">+</span> 추가</button>
+        </form>
+
+        <label class="today-toggle" for="today-input">
+          <input id="today-input" name="today" type="checkbox" checked />
+          <span>오늘 할 일</span>
+        </label>
+
+        <div class="list-heading">
+          <h2 id="list-title">할 일 목록</h2>
+          <span class="remaining" id="remaining-count" aria-live="polite">남은 할 일 0개</span>
+        </div>
+
+        <nav class="filter-bar" aria-label="할 일 필터" id="filter-bar">
+          <button class="filter-button is-active" type="button" data-filter="all" aria-pressed="true">전체</button>
+          <button class="filter-button" type="button" data-filter="today" aria-pressed="false">오늘 할 일</button>
+          <button class="filter-button" type="button" data-filter="incomplete" aria-pressed="false">미완료</button>
+          <button class="filter-button" type="button" data-filter="completed" aria-pressed="false">완료</button>
+          <button class="filter-button" type="button" data-filter="high" aria-pressed="false">중요도 높음</button>
+        </nav>
+
+        <ul class="todo-list" id="todo-list" aria-label="할 일 목록"></ul>
+        <p class="empty-state" id="empty-state">아직 할 일이 없어요.<br />새로운 할 일을 추가해 보세요!</p>
+        <p class="storage-note"><span aria-hidden="true">↻</span> 이 브라우저에 자동으로 저장돼요</p>
+      </section>
+
+      <footer class="page-footer">오늘도 차근차근, 잘하고 있어요.</footer>
+    </main>
+  </body>
+</html>
