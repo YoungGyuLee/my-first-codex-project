@@ -16,27 +16,41 @@ let activeFilter = 'all';
 function loadTodos() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    if (!Array.isArray(saved)) return [];
-    return saved.filter((todo) => todo && typeof todo.id === 'string' && typeof todo.text === 'string')
-      .map((todo) => ({
-        id: todo.id,
-        text: todo.text,
-        completed: Boolean(todo.completed),
-        priority: ['low', 'normal', 'high'].includes(todo.priority) ? todo.priority : 'normal',
-        today: typeof todo.today === 'boolean' ? todo.today : true,
-        ...(typeof todo.date === 'string' ? { date: todo.date } : {}),
-        ...(typeof todo.completedAt === 'string' ? { completedAt: todo.completedAt } : {}),
-      }));
+    return normalizeTodos(saved);
   } catch {
     return [];
   }
 }
 
-function saveTodos() {
+function normalizeTodos(saved) {
+  if (!Array.isArray(saved)) return [];
+  return saved.filter((todo) => todo && typeof todo.id === 'string' && typeof todo.text === 'string')
+    .map((todo) => ({
+      id: todo.id,
+      text: todo.text,
+      completed: Boolean(todo.completed),
+      priority: ['low', 'normal', 'high'].includes(todo.priority) ? todo.priority : 'normal',
+      today: typeof todo.today === 'boolean' ? todo.today : true,
+      ...(typeof todo.date === 'string' ? { date: todo.date } : {}),
+      ...(typeof todo.completedAt === 'string' ? { completedAt: todo.completedAt } : {}),
+    }));
+}
+
+function readLatestTodos() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+    return normalizeTodos(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
+  } catch {
+    return null;
+  }
+}
+
+function saveTodos(nextTodos = todos) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextTodos));
+    return true;
   } catch {
     // The list remains usable for this session if browser storage is unavailable.
+    return false;
   }
 }
 
@@ -162,8 +176,8 @@ function addChatMessage(role, content) {
   message.scrollIntoView({ block: 'nearest' });
 }
 
-function getTodoContext() {
-  return todos.map((todo) => ({
+function getTodoContext(todoList = todos) {
+  return todoList.map((todo) => ({
     id: todo.id,
     text: todo.text,
     completed: todo.completed,
@@ -172,6 +186,228 @@ function getTodoContext() {
     ...(typeof todo.date === 'string' ? { date: todo.date } : {}),
     ...(typeof todo.completedAt === 'string' ? { completedAt: todo.completedAt } : {}),
   }));
+}
+
+const CLIENT_TOOL_NAMES = new Set([
+  'create_task', 'update_task', 'complete_task', 'delete_task', 'list_tasks',
+]);
+
+function hasExactKeys(value, keys) {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    && Object.keys(value).length === keys.length
+    && keys.every((key) => Object.prototype.hasOwnProperty.call(value, key));
+}
+
+function isValidTodoDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function validateClientArguments(name, args, currentTodos) {
+  if (!CLIENT_TOOL_NAMES.has(name) || !args || typeof args !== 'object' || Array.isArray(args)) return false;
+  if (name === 'create_task') {
+    return hasExactKeys(args, ['text', 'priority', 'today', 'date'])
+      && typeof args.text === 'string' && Boolean(args.text.trim()) && args.text.length <= 160
+      && ['low', 'normal', 'high'].includes(args.priority) && typeof args.today === 'boolean'
+      && (args.date === null || isValidTodoDate(args.date));
+  }
+  if (name === 'update_task') {
+    const validText = args.text === null
+      || (typeof args.text === 'string' && Boolean(args.text.trim()) && args.text.length <= 160);
+    const validPriority = args.priority === null || ['low', 'normal', 'high'].includes(args.priority);
+    const validToday = args.today === null || typeof args.today === 'boolean';
+    const validDate = args.date_action === 'set' ? isValidTodoDate(args.date)
+      : ['keep', 'clear'].includes(args.date_action) ? args.date === null : false;
+    return hasExactKeys(args, ['id', 'text', 'priority', 'today', 'date_action', 'date'])
+      && typeof args.id === 'string' && currentTodos.some((todo) => todo.id === args.id)
+      && validText && validPriority && validToday && validDate
+      && (args.text !== null || args.priority !== null || args.today !== null || args.date_action !== 'keep');
+  }
+  if (name === 'complete_task' || name === 'delete_task') {
+    return hasExactKeys(args, ['id']) && typeof args.id === 'string'
+      && currentTodos.some((todo) => todo.id === args.id);
+  }
+  return hasExactKeys(args, []);
+}
+
+function toolResult(status, currentTodos, message, task, tasks) {
+  return {
+    status,
+    message,
+    ...(task ? { task } : {}),
+    ...(tasks ? { tasks } : {}),
+    todos: getTodoContext(currentTodos),
+  };
+}
+
+function saveToolChanges(nextTodos, status, message, task) {
+  if (!saveTodos(nextTodos)) {
+    return toolResult('storage_error', todos, '브라우저 저장소에 기록하지 못했어요. Todo는 변경되지 않았습니다.');
+  }
+  todos = nextTodos;
+  renderTodos();
+  const savedTask = task ? todos.find((todo) => todo.id === task.id) : undefined;
+  return toolResult(status, todos, message, savedTask);
+}
+
+function confirmTodoDeletion(task, priorityLabel, todayLabel, dateLabel) {
+  return new Promise((resolve) => {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'todo-confirm-dialog';
+    dialog.setAttribute('aria-labelledby', 'todo-confirm-title');
+
+    const title = document.createElement('h2');
+    title.id = 'todo-confirm-title';
+    title.textContent = 'Todo를 삭제할까요?';
+
+    const taskText = document.createElement('p');
+    taskText.className = 'todo-confirm-text';
+    taskText.textContent = task.text;
+
+    const details = document.createElement('p');
+    details.className = 'todo-confirm-details';
+    details.textContent = `중요도: ${priorityLabel} · ${todayLabel} · ${dateLabel}`;
+
+    const actions = document.createElement('div');
+    actions.className = 'todo-confirm-actions';
+
+    const cancelButton = document.createElement('button');
+    cancelButton.type = 'button';
+    cancelButton.className = 'todo-confirm-cancel';
+    cancelButton.textContent = '취소';
+
+    const deleteButton = document.createElement('button');
+    deleteButton.type = 'button';
+    deleteButton.className = 'todo-confirm-delete';
+    deleteButton.textContent = '삭제';
+
+    actions.append(cancelButton, deleteButton);
+    dialog.append(title, taskText, details, actions);
+    document.body.append(dialog);
+
+    const finish = (confirmed) => {
+      dialog.close();
+      dialog.remove();
+      resolve(confirmed);
+    };
+    cancelButton.addEventListener('click', () => finish(false));
+    deleteButton.addEventListener('click', () => finish(true));
+    dialog.addEventListener('cancel', (event) => {
+      event.preventDefault();
+      finish(false);
+    });
+    dialog.showModal();
+    cancelButton.focus();
+  });
+}
+
+async function executeTodoTool(call) {
+  if (!call || typeof call.callId !== 'string' || !CLIENT_TOOL_NAMES.has(call.name)) {
+    return { status: 'invalid_arguments', message: '허용되지 않은 도구 호출입니다.', todos: getTodoContext() };
+  }
+
+  const currentTodos = readLatestTodos();
+  if (!currentTodos) {
+    return { status: 'storage_error', message: '현재 Todo 저장소를 읽을 수 없어 변경하지 않았습니다.', todos: getTodoContext() };
+  }
+  todos = currentTodos;
+
+  if (call.serverError === 'task_not_found') {
+    return toolResult('task_not_found', currentTodos, '해당 ID의 Todo가 현재 목록에 없습니다.');
+  }
+  if (call.serverError || !validateClientArguments(call.name, call.arguments, currentTodos)) {
+    return toolResult('invalid_arguments', currentTodos, '도구 인자 검증에 실패해 변경하지 않았습니다.');
+  }
+
+  const args = call.arguments;
+  if (call.name === 'list_tasks') {
+    return toolResult('success', currentTodos, '현재 Todo 목록입니다.', undefined, getTodoContext(currentTodos));
+  }
+
+  if (call.name === 'create_task') {
+    const task = {
+      id: crypto.randomUUID(),
+      text: args.text.trim(),
+      completed: false,
+      priority: args.priority,
+      today: args.today,
+      ...(args.date ? { date: args.date } : {}),
+    };
+    return saveToolChanges([task, ...currentTodos], 'success', 'Todo를 추가했습니다.', task);
+  }
+
+  const task = currentTodos.find((todo) => todo.id === args.id);
+  if (!task) return toolResult('task_not_found', currentTodos, '해당 ID의 Todo가 현재 목록에 없습니다.');
+
+  if (call.name === 'update_task') {
+    const updatedTask = { ...task };
+    if (args.text !== null) updatedTask.text = args.text.trim();
+    if (args.priority !== null) updatedTask.priority = args.priority;
+    if (args.today !== null) updatedTask.today = args.today;
+    if (args.date_action === 'set') updatedTask.date = args.date;
+    if (args.date_action === 'clear') delete updatedTask.date;
+    const nextTodos = currentTodos.map((todo) => todo.id === task.id ? updatedTask : todo);
+    return saveToolChanges(nextTodos, 'success', 'Todo를 수정했습니다.', updatedTask);
+  }
+
+  if (call.name === 'complete_task') {
+    if (task.completed) return toolResult('already_completed', currentTodos, '이미 완료된 Todo입니다.', task);
+    const updatedTask = { ...task, completed: true };
+    const nextTodos = currentTodos.map((todo) => todo.id === task.id ? updatedTask : todo);
+    return saveToolChanges(nextTodos, 'success', 'Todo를 완료 처리했습니다.', updatedTask);
+  }
+
+  const priorityLabel = { low: '낮음', normal: '보통', high: '높음' }[task.priority] || '보통';
+  const todayLabel = task.today ? '오늘 할 일' : '나중에 할 일';
+  const dateLabel = task.date ? `예정일: ${task.date}` : '예정일 없음';
+  const confirmed = await confirmTodoDeletion(task, priorityLabel, todayLabel, dateLabel);
+  if (!confirmed) return toolResult('cancelled', currentTodos, '사용자가 삭제를 취소했습니다.', task);
+  const nextTodos = currentTodos.filter((todo) => todo.id !== task.id);
+  return saveToolChanges(nextTodos, 'success', 'Todo를 삭제했습니다.');
+}
+
+async function readJsonResponse(response) {
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || '요청을 처리하지 못했어요.');
+  return result;
+}
+
+async function handleChatResponse(result, toolCount = 0) {
+  if (result.type === 'message') {
+    addChatMessage('assistant', result.reply);
+    chatStatus.textContent = '';
+    return;
+  }
+  if (result.type !== 'tool_calls' || !Array.isArray(result.calls) || !result.turnId) {
+    throw new Error('서버 응답 형식이 올바르지 않아요.');
+  }
+  if (toolCount + result.calls.length > 5) {
+    addChatMessage('assistant', '한 번의 요청에서 처리할 수 있는 작업은 최대 5개예요. 추가 작업은 실행하지 않았어요.');
+    chatStatus.textContent = '';
+    return;
+  }
+
+  const outputs = [];
+  for (const call of result.calls) {
+    toolCount += 1;
+    chatStatus.textContent = `Todo 작업을 처리하고 있어요 (${toolCount}/5)…`;
+    const toolOutput = await executeTodoTool(call);
+    outputs.push({ callId: call.callId, result: toolOutput });
+  }
+
+  chatStatus.textContent = '변경 결과를 확인하고 있어요…';
+  const response = await fetch('/api/chat/continue', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      turnId: result.turnId,
+      outputs,
+      todos: getTodoContext(),
+    }),
+  });
+  const nextResult = await readJsonResponse(response);
+  return handleChatResponse(nextResult, toolCount);
 }
 
 chatForm.addEventListener('submit', async (event) => {
@@ -192,10 +428,7 @@ chatForm.addEventListener('submit', async (event) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message, todos: getTodoContext() }),
     });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || '답변을 가져오지 못했어요.');
-    addChatMessage('assistant', result.reply);
-    chatStatus.textContent = '';
+    await handleChatResponse(await readJsonResponse(response));
   } catch (error) {
     chatStatus.textContent = error instanceof TypeError
       ? '서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.'

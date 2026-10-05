@@ -85,6 +85,16 @@ h1 { margin: 0; color: #26342b; font-size: clamp(34px, 8vw, 46px); font-weight: 
 .chat-send:hover { background: var(--green-dark); }
 .chat-send:disabled { cursor: wait; opacity: .6; }
 .chat-status { min-height: 18px; margin: 7px 2px 0; color: #87928a; font-size: 11px; }
+.todo-confirm-dialog { width: min(calc(100% - 32px), 420px); padding: 24px; border: 1px solid #e3e9e2; border-radius: 16px; color: #28352e; box-shadow: 0 20px 60px rgb(28 42 31 / 22%); }
+.todo-confirm-dialog::backdrop { background: rgb(30 42 34 / 42%); }
+.todo-confirm-dialog h2 { margin: 0 0 14px; font-size: 18px; }
+.todo-confirm-text { margin: 0 0 8px; font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.todo-confirm-details { margin: 0; color: #748078; font-size: 12px; line-height: 1.6; }
+.todo-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
+.todo-confirm-actions button { min-height: 40px; padding: 0 15px; border-radius: 9px; cursor: pointer; font: inherit; }
+.todo-confirm-cancel { border: 1px solid #e3e9e2; background: #fff; color: #526057; }
+.todo-confirm-delete { border: 1px solid #c56c5e; background: #c56c5e; color: #fff; }
+.todo-confirm-actions button:focus-visible { outline: 3px solid #adc6b1; outline-offset: 2px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
 
 button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid #adc6b1; outline-offset: 2px; }
