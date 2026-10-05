@@ -145,3 +145,50 @@ form.addEventListener('submit', (event) => {
 });
 
 renderTodos();
+
+const chatForm = document.querySelector('#chat-form');
+const chatInput = document.querySelector('#chat-input');
+const chatMessages = document.querySelector('#chat-messages');
+const chatStatus = document.querySelector('#chat-status');
+const chatSend = chatForm.querySelector('button');
+
+function addChatMessage(role, content) {
+  const message = document.createElement('p');
+  message.className = `chat-message ${role === 'user' ? 'chat-message-user' : 'chat-message-assistant'}`;
+  message.textContent = content;
+  chatMessages.append(message);
+  message.scrollIntoView({ block: 'nearest' });
+}
+
+chatForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const message = chatInput.value.trim();
+  if (!message || chatSend.disabled) return;
+
+  chatMessages.querySelector('.chat-welcome')?.remove();
+  addChatMessage('user', message);
+  chatInput.value = '';
+  chatInput.disabled = true;
+  chatSend.disabled = true;
+  chatStatus.textContent = '답변을 작성하고 있어요…';
+
+  try {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || '답변을 가져오지 못했어요.');
+    addChatMessage('assistant', result.reply);
+    chatStatus.textContent = '';
+  } catch (error) {
+    chatStatus.textContent = error instanceof TypeError
+      ? '서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.'
+      : error.message || '답변을 가져오지 못했어요. 잠시 후 다시 시도해 주세요.';
+  } finally {
+    chatInput.disabled = false;
+    chatSend.disabled = false;
+    chatInput.focus();
+  }
+});

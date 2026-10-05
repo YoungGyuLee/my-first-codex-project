@@ -71,6 +71,25 @@
         <p class="storage-note"><span aria-hidden="true">↻</span> 이 브라우저에 자동으로 저장돼요</p>
       </section>
 
+      <section class="chat-card" aria-labelledby="chat-title">
+        <div class="chat-heading">
+          <div>
+            <p class="eyebrow">AI ASSISTANT</p>
+            <h2 id="chat-title">무엇이든 물어보세요</h2>
+          </div>
+          <span class="chat-model">gpt-4.1-mini</span>
+        </div>
+        <div class="chat-messages" id="chat-messages" role="log" aria-live="polite" aria-relevant="additions">
+          <p class="chat-welcome">한국어로 편하게 질문해 주세요.</p>
+        </div>
+        <form class="chat-form" id="chat-form">
+          <label class="sr-only" for="chat-input">AI에게 보낼 메시지</label>
+          <textarea id="chat-input" name="message" rows="1" maxlength="4000" placeholder="메시지를 입력하세요" required></textarea>
+          <button class="chat-send" type="submit">전송</button>
+        </form>
+        <p class="chat-status" id="chat-status" aria-live="polite"></p>
+      </section>
+
       <footer class="page-footer">오늘도 차근차근, 잘하고 있어요.</footer>
     </main>
   </body>
