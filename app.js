@@ -24,6 +24,8 @@ function loadTodos() {
         completed: Boolean(todo.completed),
         priority: ['low', 'normal', 'high'].includes(todo.priority) ? todo.priority : 'normal',
         today: typeof todo.today === 'boolean' ? todo.today : true,
+        ...(typeof todo.date === 'string' ? { date: todo.date } : {}),
+        ...(typeof todo.completedAt === 'string' ? { completedAt: todo.completedAt } : {}),
       }));
   } catch {
     return [];
@@ -160,6 +162,18 @@ function addChatMessage(role, content) {
   message.scrollIntoView({ block: 'nearest' });
 }
 
+function getTodoContext() {
+  return todos.map((todo) => ({
+    id: todo.id,
+    text: todo.text,
+    completed: todo.completed,
+    priority: todo.priority,
+    today: todo.today,
+    ...(typeof todo.date === 'string' ? { date: todo.date } : {}),
+    ...(typeof todo.completedAt === 'string' ? { completedAt: todo.completedAt } : {}),
+  }));
+}
+
 chatForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const message = chatInput.value.trim();
@@ -176,7 +190,7 @@ chatForm.addEventListener('submit', async (event) => {
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, todos: getTodoContext() }),
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || '답변을 가져오지 못했어요.');
