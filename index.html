@@ -71,6 +71,24 @@
         <p class="storage-note"><span aria-hidden="true">↻</span> 이 브라우저에 자동으로 저장돼요</p>
       </section>
 
+      <section class="documents-card" aria-labelledby="documents-title">
+        <div class="documents-heading">
+          <div>
+            <p class="eyebrow">YOUR DOCUMENTS</p>
+            <h2 id="documents-title">문서 보관함</h2>
+          </div>
+          <span class="documents-note">TXT · Markdown</span>
+        </div>
+        <form class="document-upload-form" id="document-upload-form">
+          <label class="sr-only" for="document-file">업로드할 TXT 또는 Markdown 파일</label>
+          <input id="document-file" name="document" type="file" accept=".txt,.md,text/plain,text/markdown" required />
+          <button class="document-upload-button" id="document-upload-button" type="submit">문서 업로드</button>
+        </form>
+        <p class="document-status" id="document-status" role="status" aria-live="polite"></p>
+        <ul class="document-list" id="document-list" aria-label="등록된 문서"></ul>
+        <p class="document-empty" id="document-empty">등록된 문서가 없어요.</p>
+      </section>
+
       <section class="chat-card" aria-labelledby="chat-title">
         <div class="chat-heading">
           <div>

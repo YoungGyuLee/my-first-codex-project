@@ -439,3 +439,148 @@ chatForm.addEventListener('submit', async (event) => {
     chatInput.focus();
   }
 });
+
+const documentUploadForm = document.querySelector('#document-upload-form');
+const documentFileInput = document.querySelector('#document-file');
+const documentUploadButton = document.querySelector('#document-upload-button');
+const documentStatus = document.querySelector('#document-status');
+const documentList = document.querySelector('#document-list');
+const documentEmpty = document.querySelector('#document-empty');
+
+function renderDocuments(documents) {
+  documentList.replaceChildren();
+  for (const item of documents) {
+    const row = document.createElement('li');
+    row.className = 'document-item';
+
+    const details = document.createElement('div');
+    details.className = 'document-item-details';
+
+    const name = document.createElement('span');
+    name.className = 'document-name';
+    name.textContent = item.filename;
+
+    const count = document.createElement('span');
+    count.className = 'document-chunk-count';
+    count.textContent = `chunk ${item.chunkCount}개`;
+
+    const deleteButton = document.createElement('button');
+    deleteButton.type = 'button';
+    deleteButton.className = 'document-delete-button';
+    deleteButton.textContent = '삭제';
+    deleteButton.setAttribute('aria-label', `${item.filename} 문서 삭제`);
+    deleteButton.addEventListener('click', () => deleteDocument(item));
+
+    details.append(name, count);
+    row.append(details, deleteButton);
+    documentList.append(row);
+  }
+  documentEmpty.hidden = documents.length > 0;
+}
+
+async function loadDocuments() {
+  try {
+    const response = await fetch('/api/documents');
+    renderDocuments(await readJsonResponse(response));
+  } catch (error) {
+    documentStatus.textContent = error.message || '문서 목록을 불러오지 못했어요.';
+  }
+}
+
+documentUploadForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const file = documentFileInput.files[0];
+  if (!file || documentUploadButton.disabled) return;
+
+  documentUploadButton.disabled = true;
+  documentStatus.textContent = '문서를 읽고 업로드하고 있어요…';
+  try {
+    let content;
+    try {
+      content = new TextDecoder('utf-8', { fatal: true }).decode(await file.arrayBuffer());
+    } catch {
+      throw new Error('올바른 UTF-8 텍스트 파일만 업로드할 수 있어요.');
+    }
+    const response = await fetch('/api/documents', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: file.name, content }),
+    });
+    const saved = await readJsonResponse(response);
+    await loadDocuments();
+    documentStatus.textContent = saved.duplicate
+      ? `${saved.filename} 문서는 이미 등록되어 있어 기존 항목을 유지했어요.`
+      : `${saved.filename} 업로드 완료 · chunk ${saved.chunkCount}개`;
+    documentUploadForm.reset();
+  } catch (error) {
+    documentStatus.textContent = error instanceof TypeError
+      ? '서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.'
+      : error.message || '문서를 업로드하지 못했어요.';
+  } finally {
+    documentUploadButton.disabled = false;
+  }
+});
+
+async function deleteDocument(item) {
+  const confirmed = await confirmDocumentDeletion(item.filename);
+  if (!confirmed) return;
+  documentStatus.textContent = `${item.filename} 문서를 삭제하고 있어요…`;
+  try {
+    const response = await fetch(`/api/documents/${encodeURIComponent(item.id)}`, { method: 'DELETE' });
+    if (!response.ok) {
+      const result = await response.json();
+      throw new Error(result.error || '문서를 삭제하지 못했어요.');
+    }
+    await loadDocuments();
+    documentStatus.textContent = `${item.filename} 문서를 삭제했어요.`;
+  } catch (error) {
+    documentStatus.textContent = error instanceof TypeError
+      ? '서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.'
+      : error.message || '문서를 삭제하지 못했어요.';
+  }
+}
+
+function confirmDocumentDeletion(filename) {
+  return new Promise((resolve) => {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'document-confirm-dialog';
+    dialog.setAttribute('aria-labelledby', 'document-confirm-title');
+
+    const title = document.createElement('h2');
+    title.id = 'document-confirm-title';
+    title.textContent = '문서를 삭제할까요?';
+
+    const message = document.createElement('p');
+    message.textContent = filename;
+
+    const actions = document.createElement('div');
+    actions.className = 'document-confirm-actions';
+    const cancelButton = document.createElement('button');
+    cancelButton.type = 'button';
+    cancelButton.className = 'document-confirm-cancel';
+    cancelButton.textContent = '취소';
+    const deleteButton = document.createElement('button');
+    deleteButton.type = 'button';
+    deleteButton.className = 'document-confirm-delete';
+    deleteButton.textContent = '삭제';
+    actions.append(cancelButton, deleteButton);
+    dialog.append(title, message, actions);
+    document.body.append(dialog);
+
+    const finish = (confirmed) => {
+      dialog.close();
+      dialog.remove();
+      resolve(confirmed);
+    };
+    cancelButton.addEventListener('click', () => finish(false));
+    deleteButton.addEventListener('click', () => finish(true));
+    dialog.addEventListener('cancel', (event) => {
+      event.preventDefault();
+      finish(false);
+    });
+    dialog.showModal();
+    cancelButton.focus();
+  });
+}
+
+loadDocuments();

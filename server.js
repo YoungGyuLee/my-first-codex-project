@@ -3,6 +3,7 @@ require('dotenv').config();
 const crypto = require('crypto');
 const express = require('express');
 const OpenAI = require('openai');
+const documentStore = require('./document-store');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -110,8 +111,40 @@ const tools = [
 
 const toolNames = new Set(tools.map((tool) => tool.name));
 
+app.use('/api/documents', express.json({ limit: '2mb' }));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(__dirname));
+
+app.post('/api/documents', async (req, res) => {
+  try {
+    const result = await documentStore.addDocument(req.body?.filename, req.body?.content);
+    if (result.error) return res.status(result.status || 400).json({ error: result.error });
+    return res.status(result.duplicate ? 200 : 201).json({ ...result.document, duplicate: result.duplicate });
+  } catch (error) {
+    console.error('Document save failed:', error.code || 'storage_error');
+    return res.status(500).json({ error: '문서를 저장하지 못했어요. 저장소를 확인해 주세요.' });
+  }
+});
+
+app.get('/api/documents', async (req, res) => {
+  try {
+    return res.json(await documentStore.listDocuments());
+  } catch (error) {
+    console.error('Document list failed:', error.code || 'storage_error');
+    return res.status(500).json({ error: '문서 목록을 읽지 못했어요.' });
+  }
+});
+
+app.delete('/api/documents/:id', async (req, res) => {
+  try {
+    const deleted = await documentStore.deleteDocument(req.params.id);
+    if (!deleted) return res.status(404).json({ error: '문서를 찾을 수 없어요.' });
+    return res.status(204).end();
+  } catch (error) {
+    console.error('Document delete failed:', error.code || 'storage_error');
+    return res.status(500).json({ error: '문서를 삭제하지 못했어요.' });
+  }
+});
 
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
