@@ -168,11 +168,44 @@ const chatMessages = document.querySelector('#chat-messages');
 const chatStatus = document.querySelector('#chat-status');
 const chatSend = chatForm.querySelector('button');
 
-function addChatMessage(role, content) {
+function addChatMessage(role, content, sources = []) {
   const message = document.createElement('p');
   message.className = `chat-message ${role === 'user' ? 'chat-message-user' : 'chat-message-assistant'}`;
   message.textContent = content;
-  chatMessages.append(message);
+  if (role !== 'user' && Array.isArray(sources) && sources.length > 0) {
+    const response = document.createElement('div');
+    response.className = 'chat-assistant-response';
+    response.append(message);
+
+    const sourcePanel = document.createElement('div');
+    sourcePanel.className = 'chat-sources';
+    const sourceHeading = document.createElement('p');
+    sourceHeading.className = 'chat-sources-heading';
+    sourceHeading.textContent = '📚 참고 문서';
+    const sourceList = document.createElement('ul');
+    for (const source of sources) {
+      if (!source || typeof source.filename !== 'string' || !Array.isArray(source.titlePath)) continue;
+      const item = document.createElement('li');
+      const filename = document.createElement('span');
+      filename.className = 'chat-source-filename';
+      filename.textContent = source.filename;
+      item.append(filename);
+      if (source.titlePath.length > 0) {
+        const location = document.createElement('span');
+        location.className = 'chat-source-path';
+        location.textContent = source.titlePath.filter((part) => typeof part === 'string').join(' → ');
+        item.append(location);
+      }
+      sourceList.append(item);
+    }
+    if (sourceList.childElementCount > 0) {
+      sourcePanel.append(sourceHeading, sourceList);
+      response.append(sourcePanel);
+    }
+    chatMessages.append(response);
+  } else {
+    chatMessages.append(message);
+  }
   message.scrollIntoView({ block: 'nearest' });
 }
 
@@ -375,7 +408,7 @@ async function readJsonResponse(response) {
 
 async function handleChatResponse(result, toolCount = 0) {
   if (result.type === 'message') {
-    addChatMessage('assistant', result.reply);
+    addChatMessage('assistant', result.reply, result.sources);
     chatStatus.textContent = '';
     return;
   }
@@ -447,6 +480,13 @@ const documentEmbedAllButton = document.querySelector('#document-embed-all-butto
 const documentStatus = document.querySelector('#document-status');
 const documentList = document.querySelector('#document-list');
 const documentEmpty = document.querySelector('#document-empty');
+const documentSearchForm = document.querySelector('#document-search-form');
+const documentSearchInput = document.querySelector('#document-search-query');
+const documentSearchTopK = document.querySelector('#document-search-top-k');
+const documentSearchThreshold = document.querySelector('#document-search-threshold');
+const documentSearchButton = document.querySelector('#document-search-button');
+const documentSearchStatus = document.querySelector('#document-search-status');
+const documentSearchResults = document.querySelector('#document-search-results');
 let registeredDocuments = [];
 const documentsEmbedding = new Set();
 let allDocumentsEmbedding = false;
@@ -545,6 +585,69 @@ documentEmbedAllButton.addEventListener('click', async () => {
   } finally {
     allDocumentsEmbedding = false;
     renderDocuments(registeredDocuments);
+  }
+});
+
+documentSearchForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const query = documentSearchInput.value.trim();
+  if (!query) {
+    documentSearchStatus.textContent = '검색어를 입력해주세요.';
+    documentSearchInput.focus();
+    return;
+  }
+
+  documentSearchButton.disabled = true;
+  documentSearchStatus.textContent = '검색 중...';
+  documentSearchResults.replaceChildren();
+  try {
+    const response = await fetch('/api/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query,
+        topK: Number(documentSearchTopK.value),
+        threshold: Number(documentSearchThreshold.value),
+      }),
+    });
+    const result = await readJsonResponse(response);
+    if (result.reason === 'no_documents') {
+      documentSearchStatus.textContent = '검색할 문서가 없습니다.';
+      return;
+    }
+    if (result.reason === 'no_embeddings') {
+      documentSearchStatus.textContent = '임베딩된 문서가 없습니다. 먼저 문서 임베딩을 생성해주세요.';
+      return;
+    }
+    if (!result.results.length) {
+      documentSearchStatus.textContent = '관련도가 높은 문서를 찾지 못했습니다. threshold를 낮춰 다시 검색해보세요.';
+      return;
+    }
+
+    documentSearchStatus.textContent = `검색 결과 ${result.results.length}개`;
+    for (const item of result.results) {
+      const row = document.createElement('li');
+      row.className = 'document-search-result';
+      const heading = document.createElement('h3');
+      heading.textContent = item.filename;
+      const path = document.createElement('p');
+      path.className = 'document-search-path';
+      path.textContent = item.titlePath.length ? item.titlePath.join(' → ') : `Chunk ${item.chunkIndex + 1}`;
+      const similarity = document.createElement('span');
+      similarity.className = 'document-search-similarity';
+      similarity.textContent = `similarity ${item.similarity.toFixed(4)}`;
+      const content = document.createElement('p');
+      content.className = 'document-search-content';
+      content.textContent = item.content;
+      row.append(heading, path, similarity, content);
+      documentSearchResults.append(row);
+    }
+  } catch (error) {
+    documentSearchStatus.textContent = error instanceof TypeError
+      ? '서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.'
+      : error.message || '검색 중 오류가 발생했습니다.';
+  } finally {
+    documentSearchButton.disabled = false;
   }
 });
 

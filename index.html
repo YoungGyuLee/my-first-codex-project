@@ -90,6 +90,26 @@
         <p class="document-empty" id="document-empty">등록된 문서가 없어요.</p>
       </section>
 
+      <section class="document-search-card" aria-labelledby="document-search-title">
+        <div class="documents-heading">
+          <div>
+            <p class="eyebrow">VECTOR SEARCH</p>
+            <h2 id="document-search-title">문서 검색</h2>
+          </div>
+        </div>
+        <form class="document-search-form" id="document-search-form">
+          <label class="sr-only" for="document-search-query">문서 검색어</label>
+          <input id="document-search-query" name="query" type="search" maxlength="2000" placeholder="문서에서 찾을 내용을 입력하세요" />
+          <label for="document-search-top-k">Top K</label>
+          <input id="document-search-top-k" name="topK" type="number" min="1" max="10" step="1" value="4" />
+          <label for="document-search-threshold">Threshold</label>
+          <input id="document-search-threshold" name="threshold" type="number" min="0" max="1" step="0.05" value="0.30" />
+          <button class="document-search-button" id="document-search-button" type="submit">검색</button>
+        </form>
+        <p class="document-search-status" id="document-search-status" role="status" aria-live="polite"></p>
+        <ol class="document-search-results" id="document-search-results" aria-label="문서 검색 결과"></ol>
+      </section>
+
       <section class="chat-card" aria-labelledby="chat-title">
         <div class="chat-heading">
           <div>

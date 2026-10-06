@@ -228,6 +228,23 @@ async function listDocuments() {
   return (await readDocuments()).map(publicDocument);
 }
 
+async function listSearchChunks() {
+  const documents = await readDocuments();
+  return {
+    documentCount: documents.length,
+    chunks: documents.flatMap((document) => (Array.isArray(document.chunks) ? document.chunks : []).map((chunk) => ({
+      chunkId: chunk.id,
+      documentId: document.id,
+      filename: document.filename,
+      chunkIndex: chunk.chunkIndex,
+      titlePath: Array.isArray(chunk.titlePath) ? chunk.titlePath : [],
+      content: chunk.content,
+      embeddingModel: chunk.embeddingModel,
+      embedding: chunk.embedding,
+    }))),
+  };
+}
+
 async function addDocument(filenameInput, contentInput) {
   const filename = normalizeFilename(filenameInput);
   if (!filename) return { error: '파일명은 .txt 또는 .md 문서여야 해요.' };
@@ -371,4 +388,12 @@ async function embedAllDocuments(openai) {
   });
 }
 
-module.exports = { addDocument, deleteDocument, embedAllDocuments, embedDocument, listDocuments };
+module.exports = {
+  EMBEDDING_MODEL,
+  addDocument,
+  deleteDocument,
+  embedAllDocuments,
+  embedDocument,
+  listDocuments,
+  listSearchChunks,
+};
