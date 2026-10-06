@@ -7,14 +7,27 @@ const DOCUMENTS_PATH = path.join(DATA_DIRECTORY, 'documents.json');
 const MAX_DOCUMENT_BYTES = 1024 * 1024;
 const TARGET_CHUNK_TOKENS = 500;
 const OVERLAP_TOKENS = 80;
+const EMBEDDING_MODEL = 'text-embedding-3-small';
+const EMBEDDING_BATCH_SIZE = 32;
 
 let writeQueue = Promise.resolve();
 
 function publicDocument(document) {
+  const embeddedChunkCount = document.chunks.filter((chunk) => (
+    typeof chunk.content === 'string'
+    && typeof chunk.contentHash === 'string'
+    && chunk.contentHash === crypto.createHash('sha256').update(chunk.content, 'utf8').digest('hex')
+    && chunk.embeddingModel === EMBEDDING_MODEL
+    && Array.isArray(chunk.embedding)
+    && chunk.embedding.length > 0
+    && chunk.embedding.every((value) => Number.isFinite(value))
+  )).length;
   return {
     id: document.id,
     filename: document.filename,
     chunkCount: document.chunks.length,
+    embeddedChunkCount,
+    embeddingModel: embeddedChunkCount > 0 ? EMBEDDING_MODEL : null,
     createdAt: document.createdAt,
     updatedAt: document.updatedAt,
   };
@@ -255,4 +268,107 @@ async function deleteDocument(id) {
   });
 }
 
-module.exports = { addDocument, deleteDocument, listDocuments };
+function chunkContentHash(chunk) {
+  return crypto.createHash('sha256').update(chunk.content, 'utf8').digest('hex');
+}
+
+function hasReusableEmbedding(chunk, contentHash) {
+  return chunk.contentHash === contentHash
+    && chunk.embeddingModel === EMBEDDING_MODEL
+    && Array.isArray(chunk.embedding)
+    && chunk.embedding.length > 0
+    && chunk.embedding.every((value) => Number.isFinite(value));
+}
+
+async function embedPendingChunks(pendingChunks, openai) {
+  let dimensions = null;
+
+  for (let offset = 0; offset < pendingChunks.length; offset += EMBEDDING_BATCH_SIZE) {
+    const batch = pendingChunks.slice(offset, offset + EMBEDDING_BATCH_SIZE);
+    const response = await openai.embeddings.create({
+      model: EMBEDDING_MODEL,
+      input: batch.map(({ chunk }) => chunk.content),
+      encoding_format: 'float',
+    });
+
+    if (!response || !Array.isArray(response.data) || response.data.length !== batch.length) {
+      throw new Error('invalid_embedding_response');
+    }
+    const vectors = new Array(batch.length);
+    for (const item of response.data) {
+      if (!Number.isInteger(item.index) || item.index < 0 || item.index >= batch.length
+          || vectors[item.index] || !Array.isArray(item.embedding) || item.embedding.length === 0
+          || !item.embedding.every((value) => Number.isFinite(value))) {
+        throw new Error('invalid_embedding_response');
+      }
+      vectors[item.index] = item.embedding;
+    }
+
+    for (let index = 0; index < batch.length; index += 1) {
+      const vector = vectors[index];
+      if (!vector || (dimensions !== null && vector.length !== dimensions)) {
+        throw new Error('inconsistent_embedding_dimensions');
+      }
+      dimensions = vector.length;
+      const { chunk, contentHash } = batch[index];
+      chunk.contentHash = contentHash;
+      chunk.embedding = vector;
+      chunk.embeddingModel = EMBEDDING_MODEL;
+    }
+  }
+  return dimensions;
+}
+
+async function embedDocuments(documents, selectedDocuments, openai) {
+  const chunks = selectedDocuments.flatMap((document) => document.chunks);
+  const pending = [];
+  let reusedChunks = 0;
+  let existingDimensions = null;
+
+  for (const chunk of chunks) {
+    const contentHash = chunkContentHash(chunk);
+    if (hasReusableEmbedding(chunk, contentHash)) {
+      reusedChunks += 1;
+      if (existingDimensions !== null && chunk.embedding.length !== existingDimensions) {
+        throw new Error('inconsistent_embedding_dimensions');
+      }
+      existingDimensions = chunk.embedding.length;
+    } else {
+      pending.push({ chunk, contentHash });
+    }
+  }
+
+  const generatedDimensions = await embedPendingChunks(pending, openai);
+  if (existingDimensions !== null && generatedDimensions !== null && existingDimensions !== generatedDimensions) {
+    throw new Error('inconsistent_embedding_dimensions');
+  }
+
+  if (pending.length > 0) await writeDocuments(documents);
+  return {
+    embeddedChunks: pending.length,
+    reusedChunks,
+    totalChunks: chunks.length,
+    embeddingModel: EMBEDDING_MODEL,
+    dimensions: generatedDimensions || existingDimensions || null,
+  };
+}
+
+async function embedDocument(id, openai) {
+  return withWriteLock(async () => {
+    const documents = await readDocuments();
+    const document = documents.find((item) => item.id === id);
+    if (!document) return null;
+    const result = await embedDocuments(documents, [document], openai);
+    return { documentId: id, ...result };
+  });
+}
+
+async function embedAllDocuments(openai) {
+  return withWriteLock(async () => {
+    const documents = await readDocuments();
+    const result = await embedDocuments(documents, documents, openai);
+    return { documents: documents.length, ...result };
+  });
+}
+
+module.exports = { addDocument, deleteDocument, embedAllDocuments, embedDocument, listDocuments };

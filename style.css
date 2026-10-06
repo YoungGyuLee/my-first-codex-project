@@ -73,6 +73,9 @@ h1 { margin: 0; color: #26342b; font-size: clamp(34px, 8vw, 46px); font-weight: 
 .documents-heading .eyebrow { margin-bottom: 6px; }
 .documents-heading h2 { margin: 0; font-size: 17px; }
 .documents-note { padding: 5px 9px; border-radius: 999px; background: #edf4ed; color: var(--green-dark); font-size: 10px; white-space: nowrap; }
+.document-embed-all-button { width: 100%; min-height: 40px; margin-bottom: 12px; border: 1px solid #dce8dd; border-radius: 10px; background: #edf4ed; color: var(--green-dark); cursor: pointer; font-size: 12px; font-weight: 600; }
+.document-embed-all-button:hover:not(:disabled) { background: #e3eee4; }
+.document-embed-all-button:disabled { cursor: not-allowed; opacity: .58; }
 .document-upload-form { display: flex; align-items: center; gap: 8px; }
 .document-upload-form input { min-width: 0; min-height: 42px; flex: 1; color: #647168; font-size: 12px; }
 .document-upload-form input::file-selector-button { min-height: 38px; margin-right: 8px; padding: 0 11px; border: 1px solid #e3e9e2; border-radius: 9px; background: #fafbf9; color: #526057; cursor: pointer; font: inherit; }
@@ -85,8 +88,13 @@ h1 { margin: 0; color: #26342b; font-size: clamp(34px, 8vw, 46px); font-weight: 
 .document-item-details { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
 .document-name { overflow-wrap: anywhere; color: #36443a; font-size: 13px; font-weight: 600; }
 .document-chunk-count { color: #8a968c; font-size: 11px; }
+.document-item-actions { display: flex; flex: 0 0 auto; gap: 6px; }
+.document-embed-button { min-height: 34px; padding: 0 10px; border: 1px solid #dce8dd; border-radius: 8px; background: #edf4ed; color: var(--green-dark); cursor: pointer; font-size: 11px; }
+.document-embed-button:hover:not(:disabled) { background: #e3eee4; }
+.document-embed-button:disabled { cursor: wait; opacity: .58; }
 .document-delete-button { min-height: 34px; flex: 0 0 auto; padding: 0 11px; border: 1px solid #e7ece6; border-radius: 8px; background: #fff; color: #8b665d; cursor: pointer; font-size: 11px; }
 .document-delete-button:hover { border-color: #e4b8ac; background: #fff8f6; }
+.document-delete-button:disabled { cursor: wait; opacity: .58; }
 .document-empty { margin: 12px 0 2px; color: #929c94; font-size: 12px; text-align: center; }
 .document-confirm-dialog { width: min(calc(100% - 32px), 400px); padding: 24px; border: 1px solid #e3e9e2; border-radius: 16px; color: #28352e; box-shadow: 0 20px 60px rgb(28 42 31 / 22%); }
 .document-confirm-dialog::backdrop { background: rgb(30 42 34 / 42%); }

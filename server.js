@@ -8,11 +8,13 @@ const documentStore = require('./document-store');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const OPENAI_MODEL = 'gpt-4.1-mini';
+const EMBEDDING_MODEL = 'text-embedding-3-small';
 const MAX_MESSAGE_LENGTH = 4000;
 const MAX_TODO_COUNT = 2000;
 const MAX_TOOL_CALLS = 5;
 const PENDING_TTL_MS = 5 * 60 * 1000;
 const pendingTurns = new Map();
+let openaiClient = null;
 
 const instructions = [
   '당신은 친절하고 도움이 되는 한국어 Todo 도우미입니다. 사용자의 언어에 맞춰 명확하게 답변하세요.',
@@ -146,6 +148,37 @@ app.delete('/api/documents/:id', async (req, res) => {
   }
 });
 
+app.post('/api/documents/embed-all', async (req, res) => {
+  if (!process.env.OPENAI_API_KEY) {
+    return res.status(500).json({ error: '서버에 OpenAI API 키가 설정되지 않았어요.' });
+  }
+  try {
+    const result = await documentStore.embedAllDocuments(getOpenAIClient());
+    return res.json(result);
+  } catch (error) {
+    console.error('Document embedding failed:', error.status || error.code || 'embedding_failed');
+    return res.status(502).json({ error: '문서 임베딩을 완료하지 못했어요. 저장된 문서는 변경되지 않았습니다.' });
+  }
+});
+
+app.post('/api/documents/:id/embed', async (req, res) => {
+  try {
+    const existing = await documentStore.listDocuments();
+    if (!existing.some((document) => document.id === req.params.id)) {
+      return res.status(404).json({ error: '문서를 찾을 수 없어요.' });
+    }
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(500).json({ error: '서버에 OpenAI API 키가 설정되지 않았어요.' });
+    }
+    const result = await documentStore.embedDocument(req.params.id, getOpenAIClient());
+    if (!result) return res.status(404).json({ error: '문서를 찾을 수 없어요.' });
+    return res.json(result);
+  } catch (error) {
+    console.error('Document embedding failed:', error.status || error.code || 'embedding_failed');
+    return res.status(502).json({ error: '문서 임베딩을 완료하지 못했어요. 저장된 문서는 변경되지 않았습니다.' });
+  }
+});
+
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -234,8 +267,9 @@ function collectFunctionCalls(response) {
   return response.output.filter((item) => item.type === 'function_call');
 }
 
-function makeClient(openai) {
-  return openai || new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+function getOpenAIClient() {
+  if (!openaiClient) openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return openaiClient;
 }
 
 function modelRequestOptions(input, previousResponseId) {
@@ -343,7 +377,7 @@ app.post('/api/chat', async (req, res) => {
   }
 
   try {
-    const openai = makeClient();
+    const openai = getOpenAIClient();
     const input = `사용자 질문:\n${message.trim()}\n\n현재 Todo Context (JSON 데이터):\n${JSON.stringify(currentTodos)}`;
     const response = await openai.responses.create(modelRequestOptions(input));
     return res.json(proposalOrReply(response, currentTodos));
@@ -401,7 +435,7 @@ app.post('/api/chat/continue', async (req, res) => {
 
   pendingTurns.delete(turnId);
   try {
-    const openai = makeClient();
+    const openai = getOpenAIClient();
     const response = await openai.responses.create(
       modelRequestOptions(functionOutputs, turn.responseId),
     );

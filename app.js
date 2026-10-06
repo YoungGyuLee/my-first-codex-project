@@ -443,11 +443,16 @@ chatForm.addEventListener('submit', async (event) => {
 const documentUploadForm = document.querySelector('#document-upload-form');
 const documentFileInput = document.querySelector('#document-file');
 const documentUploadButton = document.querySelector('#document-upload-button');
+const documentEmbedAllButton = document.querySelector('#document-embed-all-button');
 const documentStatus = document.querySelector('#document-status');
 const documentList = document.querySelector('#document-list');
 const documentEmpty = document.querySelector('#document-empty');
+let registeredDocuments = [];
+const documentsEmbedding = new Set();
+let allDocumentsEmbedding = false;
 
 function renderDocuments(documents) {
+  registeredDocuments = documents;
   documentList.replaceChildren();
   for (const item of documents) {
     const row = document.createElement('li');
@@ -462,20 +467,36 @@ function renderDocuments(documents) {
 
     const count = document.createElement('span');
     count.className = 'document-chunk-count';
-    count.textContent = `chunk ${item.chunkCount}개`;
+    count.textContent = item.embeddingModel
+      ? `${item.embeddedChunkCount} / ${item.chunkCount} chunks embedded · ${item.embeddingModel}`
+      : `임베딩 ${item.embeddedChunkCount} / ${item.chunkCount} chunks`;
+
+    const actions = document.createElement('div');
+    actions.className = 'document-item-actions';
+
+    const embedButton = document.createElement('button');
+    embedButton.type = 'button';
+    embedButton.className = 'document-embed-button';
+    embedButton.textContent = '임베딩 생성';
+    embedButton.disabled = allDocumentsEmbedding || documentsEmbedding.has(item.id);
+    embedButton.setAttribute('aria-label', `${item.filename} 임베딩 생성`);
+    embedButton.addEventListener('click', () => embedDocument(item));
 
     const deleteButton = document.createElement('button');
     deleteButton.type = 'button';
     deleteButton.className = 'document-delete-button';
     deleteButton.textContent = '삭제';
     deleteButton.setAttribute('aria-label', `${item.filename} 문서 삭제`);
+    deleteButton.disabled = allDocumentsEmbedding || documentsEmbedding.has(item.id);
     deleteButton.addEventListener('click', () => deleteDocument(item));
 
     details.append(name, count);
-    row.append(details, deleteButton);
+    actions.append(embedButton, deleteButton);
+    row.append(details, actions);
     documentList.append(row);
   }
   documentEmpty.hidden = documents.length > 0;
+  documentEmbedAllButton.disabled = allDocumentsEmbedding || documentsEmbedding.size > 0 || documents.length === 0;
 }
 
 async function loadDocuments() {
@@ -486,6 +507,46 @@ async function loadDocuments() {
     documentStatus.textContent = error.message || '문서 목록을 불러오지 못했어요.';
   }
 }
+
+async function embedDocument(item) {
+  if (documentsEmbedding.has(item.id) || allDocumentsEmbedding) return;
+  documentsEmbedding.add(item.id);
+  renderDocuments(registeredDocuments);
+  documentStatus.textContent = `${item.filename}의 임베딩을 생성하고 있어요…`;
+  try {
+    const response = await fetch(`/api/documents/${encodeURIComponent(item.id)}/embed`, { method: 'POST' });
+    const result = await readJsonResponse(response);
+    await loadDocuments();
+    documentStatus.textContent = `${item.filename}: 새 임베딩 ${result.embeddedChunks}개, 재사용 ${result.reusedChunks}개 (${result.totalChunks}개 중)`;
+  } catch (error) {
+    documentStatus.textContent = error instanceof TypeError
+      ? '서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.'
+      : error.message || '문서 임베딩을 완료하지 못했어요.';
+  } finally {
+    documentsEmbedding.delete(item.id);
+    renderDocuments(registeredDocuments);
+  }
+}
+
+documentEmbedAllButton.addEventListener('click', async () => {
+  if (allDocumentsEmbedding || documentsEmbedding.size > 0) return;
+  allDocumentsEmbedding = true;
+  renderDocuments(registeredDocuments);
+  documentStatus.textContent = '등록된 문서의 임베딩을 생성하고 있어요…';
+  try {
+    const response = await fetch('/api/documents/embed-all', { method: 'POST' });
+    const result = await readJsonResponse(response);
+    await loadDocuments();
+    documentStatus.textContent = `문서 ${result.documents}개: 새 임베딩 ${result.embeddedChunks}개, 재사용 ${result.reusedChunks}개 (${result.totalChunks}개 중)`;
+  } catch (error) {
+    documentStatus.textContent = error instanceof TypeError
+      ? '서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.'
+      : error.message || '전체 문서 임베딩을 완료하지 못했어요.';
+  } finally {
+    allDocumentsEmbedding = false;
+    renderDocuments(registeredDocuments);
+  }
+});
 
 documentUploadForm.addEventListener('submit', async (event) => {
   event.preventDefault();
