@@ -167,6 +167,9 @@ const chatInput = document.querySelector('#chat-input');
 const chatMessages = document.querySelector('#chat-messages');
 const chatStatus = document.querySelector('#chat-status');
 const chatSend = chatForm.querySelector('button');
+const MAX_CHAT_HISTORY_MESSAGES = 8;
+const MAX_CHAT_HISTORY_MESSAGE_LENGTH = 5000;
+const chatHistory = [];
 
 function addChatMessage(role, content, sources = []) {
   const message = document.createElement('p');
@@ -410,15 +413,16 @@ async function handleChatResponse(result, toolCount = 0) {
   if (result.type === 'message') {
     addChatMessage('assistant', result.reply, result.sources);
     chatStatus.textContent = '';
-    return;
+    return result;
   }
   if (result.type !== 'tool_calls' || !Array.isArray(result.calls) || !result.turnId) {
     throw new Error('서버 응답 형식이 올바르지 않아요.');
   }
   if (toolCount + result.calls.length > 5) {
-    addChatMessage('assistant', '한 번의 요청에서 처리할 수 있는 작업은 최대 5개예요. 추가 작업은 실행하지 않았어요.');
+    const reply = '한 번의 요청에서 처리할 수 있는 작업은 최대 5개예요. 추가 작업은 실행하지 않았어요.';
+    addChatMessage('assistant', reply, result.sources);
     chatStatus.textContent = '';
-    return;
+    return { type: 'message', reply, sources: result.sources };
   }
 
   const outputs = [];
@@ -443,6 +447,16 @@ async function handleChatResponse(result, toolCount = 0) {
   return handleChatResponse(nextResult, toolCount);
 }
 
+function rememberChatExchange(userMessage, assistantMessage) {
+  chatHistory.push(
+    { role: 'user', content: userMessage.slice(-MAX_CHAT_HISTORY_MESSAGE_LENGTH) },
+    { role: 'assistant', content: assistantMessage.slice(-MAX_CHAT_HISTORY_MESSAGE_LENGTH) },
+  );
+  if (chatHistory.length > MAX_CHAT_HISTORY_MESSAGES) {
+    chatHistory.splice(0, chatHistory.length - MAX_CHAT_HISTORY_MESSAGES);
+  }
+}
+
 chatForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const message = chatInput.value.trim();
@@ -459,9 +473,12 @@ chatForm.addEventListener('submit', async (event) => {
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, todos: getTodoContext() }),
+      body: JSON.stringify({ message, todos: getTodoContext(), history: chatHistory }),
     });
-    await handleChatResponse(await readJsonResponse(response));
+    const finalResult = await handleChatResponse(await readJsonResponse(response));
+    if (finalResult?.type === 'message' && typeof finalResult.reply === 'string') {
+      rememberChatExchange(message, finalResult.reply);
+    }
   } catch (error) {
     chatStatus.textContent = error instanceof TypeError
       ? '서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.'

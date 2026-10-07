@@ -37,7 +37,17 @@ function searchChunks(queryEmbedding, chunks, { model, topK, threshold }) {
     });
   }
   ranked.sort((left, right) => right.similarity - left.similarity);
-  return ranked.slice(0, topK);
+  const documentCounts = new Map();
+  const diverseResults = [];
+  for (const result of ranked) {
+    const documentKey = result.documentId || result.filename;
+    const count = documentCounts.get(documentKey) || 0;
+    if (count >= 2) continue;
+    documentCounts.set(documentKey, count + 1);
+    diverseResults.push(result);
+    if (diverseResults.length === topK) break;
+  }
+  return diverseResults;
 }
 
 async function searchDocuments(query, { getOpenAIClient, documentStore, model, topK = 4, threshold = 0.30 }) {
