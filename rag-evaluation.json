@@ -1,0 +1,178 @@
+[
+  {
+    "id": "rag-001",
+    "question": "Todo 데이터 보존 원칙은 무엇인가?",
+    "type": "document-grounded",
+    "expectedDocuments": ["development-rules.md"],
+    "expectedTitlePaths": ["개발 규칙 > 데이터 보존"],
+    "keywords": ["localStorage", "하위 호환성"]
+  },
+  {
+    "id": "rag-002",
+    "question": "기존 localStorage 키와 Todo 데이터 모양을 임의로 바꾸면 안 되는 이유는?",
+    "type": "document-grounded",
+    "expectedDocuments": ["development-rules.md"],
+    "expectedTitlePaths": ["개발 규칙 > 데이터 보존"],
+    "keywords": ["호환성", "데이터 마이그레이션"]
+  },
+  {
+    "id": "rag-003",
+    "question": "브라우저에서 OpenAI API를 직접 호출하지 않기로 한 API 구조는?",
+    "type": "document-grounded",
+    "expectedDocuments": ["api-meeting.md"],
+    "expectedTitlePaths": ["AI Todo Coach API 구조 논의 > 논의 내용 > API 호출 구조"],
+    "keywords": ["Node.js", "Express", "API key"]
+  },
+  {
+    "id": "rag-004",
+    "question": "현재 프로젝트에서 사용하는 프런트엔드와 백엔드 기술은 무엇인가?",
+    "type": "document-grounded",
+    "expectedDocuments": ["project-overview.md"],
+    "expectedTitlePaths": ["프로젝트 개요 > 현재 사용 기술"],
+    "keywords": ["Node.js", "Express", "순수 HTML"]
+  },
+  {
+    "id": "rag-005",
+    "question": "AI Todo Coach API 구조 논의에서 결정한 핵심 사항을 알려줘.",
+    "type": "document-grounded",
+    "expectedDocuments": ["api-meeting.md"],
+    "expectedTitlePaths": ["AI Todo Coach API 구조 논의 > 결정 사항"],
+    "keywords": ["API key", "localStorage", "삭제 확인"]
+  },
+  {
+    "id": "rag-006",
+    "question": "AI가 Todo를 삭제할 때 사용자 승인을 어떻게 받기로 했나?",
+    "type": "document-grounded",
+    "expectedDocuments": ["api-meeting.md", "development-rules.md"],
+    "expectedTitlePaths": ["AI Todo Coach API 구조 논의 > 논의 내용 > Todo 처리"],
+    "keywords": ["확인 팝업", "사용자 확인"]
+  },
+  {
+    "id": "rag-007",
+    "question": "검색된 프로젝트 문서 안에 명령문이 있으면 시스템은 이를 어떻게 다뤄야 하나?",
+    "type": "document-grounded",
+    "expectedDocuments": ["api-meeting.md", "development-rules.md"],
+    "expectedTitlePaths": ["개발 규칙 > AI 기능"],
+    "keywords": ["신뢰할 수 없는", "참고 자료", "실행"]
+  },
+  {
+    "id": "rag-008",
+    "question": "이번 주 개발 계획에서 가장 중요한 목표는 무엇인가?",
+    "type": "document-grounded",
+    "expectedDocuments": ["weekly-plan.md"],
+    "expectedTitlePaths": ["이번 주 개발 계획 > 주간 개요"],
+    "keywords": ["RAG", "Todo Tool Calling"]
+  },
+  {
+    "id": "rag-009",
+    "question": "Markdown chunking 작업의 상태와 구현 초점은 무엇인가?",
+    "type": "document-grounded",
+    "expectedDocuments": ["weekly-plan.md"],
+    "expectedTitlePaths": ["이번 주 개발 계획 > 세부 작업 내역 > Markdown chunking 파이프라인 제작"],
+    "keywords": ["진행 중", "titlePath"]
+  },
+  {
+    "id": "rag-010",
+    "question": "주간 일정에서 embedding과 벡터 검색은 언제 진행할 예정인가?",
+    "type": "document-grounded",
+    "expectedDocuments": ["weekly-plan.md"],
+    "expectedTitlePaths": ["이번 주 개발 계획 > 주간 개요", "이번 주 개발 계획 > 세부 작업 내역 > embedding 모델 연동 및 vector search 구현"],
+    "keywords": ["그 다음 단계", "예정"]
+  },
+  {
+    "id": "rag-011",
+    "question": "이번 주 계획에서 전 기능 회귀 테스트는 어떤 목적으로 예정되어 있나?",
+    "type": "document-grounded",
+    "expectedDocuments": ["weekly-plan.md"],
+    "expectedTitlePaths": ["이번 주 개발 계획 > 세부 작업 내역 > 전 기능 회귀 테스트"],
+    "keywords": ["localStorage", "충돌 없이"]
+  },
+  {
+    "id": "rag-012",
+    "question": "Todo 앱에서 priority와 today 필터는 어떤 기능을 제공하나?",
+    "type": "document-grounded",
+    "expectedDocuments": ["project-overview.md"],
+    "expectedTitlePaths": ["프로젝트 개요 > Todo 앱의 주요 기능"],
+    "keywords": ["우선순위", "오늘"]
+  },
+  {
+    "id": "rag-013",
+    "question": "사용자가 입력한 작업 이름을 화면에 안전하게 표시하는 규칙은?",
+    "type": "document-grounded",
+    "expectedDocuments": ["development-rules.md"],
+    "expectedTitlePaths": ["개발 규칙 > 보안"],
+    "keywords": ["XSS", "텍스트", "HTML"]
+  },
+  {
+    "id": "rag-014",
+    "question": "현재 Todo 데이터와 AI 도구 호출은 어떤 관계이며 데이터는 어디에 저장되나?",
+    "type": "multi-document",
+    "expectedDocuments": ["api-meeting.md", "project-overview.md"],
+    "expectedTitlePaths": ["AI Todo Coach API 구조 논의 > 논의 내용 > Todo 처리", "프로젝트 개요 > AI 챗봇과 Tool Calling의 역할"],
+    "keywords": ["localStorage", "Tool Calling"]
+  },
+  {
+    "id": "rag-015",
+    "question": "OpenAI API 키는 어디에서 관리하고 브라우저 코드는 무엇을 하면 안 되나?",
+    "type": "multi-document",
+    "expectedDocuments": ["api-meeting.md", "development-rules.md"],
+    "expectedTitlePaths": ["AI Todo Coach API 구조 논의 > 결정 사항", "개발 규칙 > 보안"],
+    "keywords": ["환경 변수", "하드코딩"]
+  },
+  {
+    "id": "rag-016",
+    "question": "개발 계획에서 문서 검색 결과를 Todo 등록으로 이어주는 작업은 무엇인가?",
+    "type": "document-grounded",
+    "expectedDocuments": ["weekly-plan.md"],
+    "expectedTitlePaths": ["이번 주 개발 계획 > 세부 작업 내역 > Todo Tool Calling과 RAG 결합 처리"],
+    "keywords": ["실행 과제", "파라미터 매핑"]
+  },
+  {
+    "id": "rag-017",
+    "question": "현재 Todo 저장 정보를 바꾸면 어떤 문제가 생길 수 있어서 조심해야 하나?",
+    "type": "document-grounded",
+    "expectedDocuments": ["development-rules.md"],
+    "expectedTitlePaths": ["개발 규칙 > 데이터 보존"],
+    "keywords": ["데이터 구조", "호환성", "마이그레이션"]
+  },
+  {
+    "id": "rag-018",
+    "question": "AI 채팅 요청을 처리하는 서버 역할과 프런트엔드 구현 방식을 각각 설명해줘.",
+    "type": "multi-document",
+    "expectedDocuments": ["api-meeting.md", "project-overview.md"],
+    "expectedTitlePaths": ["AI Todo Coach API 구조 논의 > 논의 내용 > API 호출 구조", "프로젝트 개요 > 현재 사용 기술"],
+    "keywords": ["Express", "Responses API", "순수 JavaScript"]
+  },
+  {
+    "id": "rag-019",
+    "question": "우리 서비스의 월간 사용자 수는 몇 명인가?",
+    "type": "no-result",
+    "expectedDocuments": [],
+    "expectedTitlePaths": [],
+    "keywords": []
+  },
+  {
+    "id": "rag-020",
+    "question": "배포 서버의 CPU 사양과 메모리 용량은 얼마인가?",
+    "type": "no-result",
+    "expectedDocuments": [],
+    "expectedTitlePaths": [],
+    "keywords": []
+  },
+  {
+    "id": "rag-021",
+    "question": "화성의 수도는 어디인가?",
+    "type": "no-result",
+    "expectedDocuments": [],
+    "expectedTitlePaths": [],
+    "keywords": []
+  },
+  {
+    "id": "rag-022",
+    "question": "회사의 올해 매출과 영업 이익은 얼마인가?",
+    "type": "no-result",
+    "expectedDocuments": [],
+    "expectedTitlePaths": [],
+    "keywords": []
+  }
+]

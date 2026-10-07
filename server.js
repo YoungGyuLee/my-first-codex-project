@@ -350,6 +350,14 @@ function getOpenAIClient() {
   return openaiClient;
 }
 
+function injectEvaluationFault(name) {
+  // Fault injection is opt-in and is always disabled in production mode.
+  if (process.env.NODE_ENV === 'production' || process.env.RAG_EVAL_FAULT !== name) return;
+  const error = new Error(`evaluation_${name}_failure`);
+  error.code = 'RAG_EVALUATION_FAULT';
+  throw error;
+}
+
 function modelRequestOptions(input, previousResponseId) {
   return {
     model: OPENAI_MODEL,
@@ -506,6 +514,7 @@ app.post('/api/chat', async (req, res) => {
 
   let ragSearch;
   try {
+    injectEvaluationFault('search');
     ragSearch = await vectorSearch.searchDocuments(buildRetrievalQuery(message.trim(), history), {
       getOpenAIClient,
       documentStore,
@@ -534,6 +543,7 @@ app.post('/api/chat', async (req, res) => {
       '[USER MESSAGE]',
       message.trim(),
     ].join('\n');
+    injectEvaluationFault('openai');
     const response = await openai.responses.create(modelRequestOptions(input));
     return res.json(proposalOrReply(response, currentTodos, undefined, ragContext.sources));
   } catch (error) {
@@ -591,6 +601,7 @@ app.post('/api/chat/continue', async (req, res) => {
   pendingTurns.delete(turnId);
   try {
     const openai = getOpenAIClient();
+    injectEvaluationFault('continue');
     const response = await openai.responses.create(
       modelRequestOptions(functionOutputs, turn.responseId),
     );
